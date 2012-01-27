@@ -22,6 +22,7 @@ import me.prettyprint.cassandra.model.HColumnImpl;
 import me.prettyprint.cassandra.serializers.BytesArraySerializer;
 import me.prettyprint.cassandra.serializers.FloatSerializer;
 import me.prettyprint.cassandra.serializers.LongSerializer;
+import me.prettyprint.cassandra.service.CassandraHostConfigurator;
 import me.prettyprint.cassandra.service.OperationType;
 import me.prettyprint.hector.api.Cluster;
 import me.prettyprint.hector.api.ConsistencyLevelPolicy;
@@ -119,6 +120,32 @@ public final class CassandraDataModel implements DataModel, Closeable {
   }
 
   /**
+   * @param keyspaceName name of Cassandra keyspace to use
+   * @param hostPortArray  a list of Cassandra server hostName:port . (ex: cassandra01.net:9160)
+   */
+  public CassandraDataModel(String keyspaceName, String... hostPortArray) {
+    Preconditions.checkNotNull(hostPortArray);
+    Preconditions.checkNotNull(keyspaceName);
+
+    CassandraHostConfigurator configurator = new CassandraHostConfigurator();
+    String hosts = "";
+    for(String host : hostPortArray)
+	hosts += "," + host;
+    hosts = "".equals(hosts) ? "" :  hosts.substring(1);
+    configurator.setHosts( hosts );
+    cluster = HFactory.getOrCreateCluster(CassandraDataModel.class.getSimpleName(), configurator);
+    keyspace = HFactory.createKeyspace(keyspaceName, cluster);
+    keyspace.setConsistencyLevelPolicy(new OneConsistencyLevelPolicy());
+
+    userCache = new Cache<Long,PreferenceArray>(new UserPrefArrayRetriever(), 1 << 20);
+    itemCache = new Cache<Long,PreferenceArray>(new ItemPrefArrayRetriever(), 1 << 20);
+    itemIDsFromUserCache = new Cache<Long,FastIDSet>(new ItemIDsFromUserRetriever(), 1 << 20);
+    userIDsFromItemCache = new Cache<Long,FastIDSet>(new UserIDsFromItemRetriever(), 1 << 20);
+    userCountCache = new AtomicReference<Integer>(null);
+    itemCountCache = new AtomicReference<Integer>(null);
+  }
+
+  /**
    * @param host Cassandra server host name
    * @param port Cassandra server port
    * @param keyspaceName name of Cassandra keyspace to use
@@ -140,6 +167,7 @@ public final class CassandraDataModel implements DataModel, Closeable {
     userCountCache = new AtomicReference<Integer>(null);
     itemCountCache = new AtomicReference<Integer>(null);
   }
+
 
   @Override
   public LongPrimitiveIterator getUserIDs() {
@@ -253,6 +281,12 @@ public final class CassandraDataModel implements DataModel, Closeable {
 
   @Override
   public void setPreference(long userID, long itemID, float value) {
+	Mutator<Long> mutator = HFactory.createMutator(keyspace, LongSerializer.get());
+	setPreference(userID, itemID, value, mutator);
+	mutator.execute();
+  }
+
+  public void setPreference(long userID, long itemID, float value, Mutator<Long> mutator) {
 
     if (Float.isNaN(value)) {
       value = 1.0f;
@@ -260,7 +294,6 @@ public final class CassandraDataModel implements DataModel, Closeable {
     
     long now = System.currentTimeMillis();
 
-    Mutator<Long> mutator = HFactory.createMutator(keyspace, LongSerializer.get());
 
     HColumn<Long,Float> itemForUsers = new HColumnImpl<Long,Float>(LongSerializer.get(), FloatSerializer.get());
     itemForUsers.setName(itemID);
@@ -286,7 +319,6 @@ public final class CassandraDataModel implements DataModel, Closeable {
     itemIDs.setValue(EMPTY);
     mutator.addInsertion(ID_ROW_KEY, ITEM_IDS_CF, itemIDs);
 
-    mutator.execute();
   }
 
   @Override
