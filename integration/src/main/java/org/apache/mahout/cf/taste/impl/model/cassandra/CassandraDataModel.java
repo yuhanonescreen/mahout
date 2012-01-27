@@ -285,8 +285,12 @@ public final class CassandraDataModel implements DataModel, Closeable {
 	setPreference(userID, itemID, value, mutator);
 	mutator.execute();
   }
+  
 
-  public void setPreference(long userID, long itemID, float value, Mutator<Long> mutator) {
+  public Mutator<Long> setPreference(long userID, long itemID, float value, Mutator<Long> mutator) {
+    if(mutator == null) {
+	mutator = HFactory.createMutator(keyspace, LongSerializer.get());
+    }
 
     if (Float.isNaN(value)) {
       value = 1.0f;
@@ -319,6 +323,7 @@ public final class CassandraDataModel implements DataModel, Closeable {
     itemIDs.setValue(EMPTY);
     mutator.addInsertion(ID_ROW_KEY, ITEM_IDS_CF, itemIDs);
 
+    return mutator;
   }
 
   @Override
