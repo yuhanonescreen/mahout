@@ -23,6 +23,7 @@ import me.prettyprint.cassandra.serializers.BytesArraySerializer;
 import me.prettyprint.cassandra.serializers.FloatSerializer;
 import me.prettyprint.cassandra.serializers.LongSerializer;
 import me.prettyprint.cassandra.service.CassandraHostConfigurator;
+import me.prettyprint.cassandra.service.ColumnSliceIterator;
 import me.prettyprint.cassandra.service.OperationType;
 import me.prettyprint.hector.api.Cluster;
 import me.prettyprint.hector.api.ConsistencyLevelPolicy;
@@ -171,11 +172,33 @@ public final class CassandraDataModel implements DataModel, Closeable {
 
   @Override
   public LongPrimitiveIterator getUserIDs() {
+    SliceQuery<Long,Long,byte[]> query = buildNoValueSliceQuery(USER_IDS_CF);
+    query.setKey(ID_ROW_KEY);
+    ColumnSliceIterator<Long, Long, byte[]>it = new ColumnSliceIterator<Long, Long, byte[]>(query, Long.MIN_VALUE, Long.MAX_VALUE, false);
+    return new ColumnNameIterator( it );
+
+	/*
     SliceQuery<Long,Long,?> query = buildNoValueSliceQuery(USER_IDS_CF);
     query.setKey(ID_ROW_KEY);
     FastIDSet userIDs = new FastIDSet();
     for (HColumn<Long,?> userIDColumn : query.execute().get().getColumns()) {
       userIDs.add(userIDColumn.getName());
+    }
+    return userIDs.iterator();
+*/
+  }
+
+  public LongPrimitiveIterator getUserIDs(Long startUserId, Long numUsers) {
+    SliceQuery<Long,Long,byte[]> query = buildNoValueSliceQuery(USER_IDS_CF);
+    query.setKey(ID_ROW_KEY);
+    FastIDSet userIDs = new FastIDSet();
+    ColumnSliceIterator<Long, Long, byte[]>it = new ColumnSliceIterator<Long, Long, byte[]>(query, startUserId, Long.MAX_VALUE, false);
+    int i=0;
+    while(it.hasNext()) {
+	HColumn<Long, byte[]> column = it.next();
+	userIDs.add(column.getName());
+	if(++i > numUsers)
+		break;
     }
     return userIDs.iterator();
   }
@@ -192,6 +215,11 @@ public final class CassandraDataModel implements DataModel, Closeable {
 
   @Override
   public LongPrimitiveIterator getItemIDs() {
+    SliceQuery<Long,Long,byte[]> query = buildNoValueSliceQuery(ITEM_IDS_CF);
+    query.setKey(ID_ROW_KEY);
+    ColumnSliceIterator<Long, Long, byte[]>it = new ColumnSliceIterator<Long, Long, byte[]>(query, Long.MIN_VALUE, Long.MAX_VALUE, false);
+    return new ColumnNameIterator( it );
+/*
     SliceQuery<Long,Long,?> query = buildNoValueSliceQuery(ITEM_IDS_CF);
     query.setKey(ID_ROW_KEY);
     FastIDSet itemIDs = new FastIDSet();
@@ -199,6 +227,7 @@ public final class CassandraDataModel implements DataModel, Closeable {
       itemIDs.add(itemIDColumn.getName());
     }
     return itemIDs.iterator();
+*/
   }
 
   @Override
