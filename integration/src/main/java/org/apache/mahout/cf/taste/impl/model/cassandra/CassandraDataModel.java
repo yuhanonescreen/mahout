@@ -86,7 +86,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * classes in your implementation, like {@link org.apache.mahout.cf.taste.impl.recommender.CachingRecommender}
  * or {@link org.apache.mahout.cf.taste.impl.similarity.CachingItemSimilarity}.</p>
  */
-public final class CassandraDataModel implements DataModel, Closeable {
+public class CassandraDataModel implements DataModel, Closeable {
 
   /** Default Cassandra host. Default: localhost */
   private static final String DEFAULT_HOST = "localhost";
@@ -174,7 +174,7 @@ public final class CassandraDataModel implements DataModel, Closeable {
   public LongPrimitiveIterator getUserIDs() {
     SliceQuery<Long,Long,byte[]> query = buildNoValueSliceQuery(USER_IDS_CF);
     query.setKey(ID_ROW_KEY);
-    ColumnSliceIterator<Long, Long, byte[]>it = new ColumnSliceIterator<Long, Long, byte[]>(query, Long.MIN_VALUE, Long.MAX_VALUE, false);
+    ColumnSliceIterator<Long, Long, byte[]>it = new ColumnSliceIterator<Long, Long, byte[]>(query, 0L, Long.MAX_VALUE, false);
     return new ColumnNameIterator( it );
 
 	/*
@@ -217,7 +217,7 @@ public final class CassandraDataModel implements DataModel, Closeable {
   public LongPrimitiveIterator getItemIDs() {
     SliceQuery<Long,Long,byte[]> query = buildNoValueSliceQuery(ITEM_IDS_CF);
     query.setKey(ID_ROW_KEY);
-    ColumnSliceIterator<Long, Long, byte[]>it = new ColumnSliceIterator<Long, Long, byte[]>(query, Long.MIN_VALUE, Long.MAX_VALUE, false);
+    ColumnSliceIterator<Long, Long, byte[]>it = new ColumnSliceIterator<Long, Long, byte[]>(query, 0L, Long.MAX_VALUE, false);
     return new ColumnNameIterator( it );
 /*
     SliceQuery<Long,Long,?> query = buildNoValueSliceQuery(ITEM_IDS_CF);
